@@ -54,6 +54,19 @@ def process_class(job: tuple[Path, int, Path]) -> tuple[str, int]:
     return slug, int(arr.shape[0])
 
 
+def read_name_map(classes_file: Path) -> dict[str, str]:
+    """slug -> human label, so the UI can show 'ice cream' instead of 'ice_cream'."""
+    out: dict[str, str] = {}
+    if not classes_file.exists():
+        return out
+    for line in classes_file.read_text(encoding="utf-8-sig").splitlines():
+        word = line.strip()
+        if not word or word.startswith("#"):
+            continue
+        out[word.replace(" ", "_").replace("-", "_").lower()] = word
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--raw", type=Path, default=Path(__file__).parent / "data" / "raw")
@@ -78,9 +91,11 @@ def main() -> None:
             print(f"{slug:<20} {n:>6}{flag}", flush=True)
 
     keep = sorted(k for k, v in counts.items() if v)
+    names = read_name_map(Path(__file__).with_name("classes.txt"))
     manifest = {
         "size": 64,
         "classes": keep,
+        "names": {k: names.get(k, k.replace("_", " ")) for k in keep},
         "counts": {k: counts[k] for k in keep},
         "total": int(sum(counts[k] for k in keep)),
         "built_at": time.strftime("%Y-%m-%dT%H:%M:%S"),

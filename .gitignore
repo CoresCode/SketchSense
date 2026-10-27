@@ -15,12 +15,12 @@ ml/runs/
 node_modules/
 web/dist/
 web/.vite/
+web/public/ort/
 npm-debug.log*
 
-# Model artifacts bigger than we want in git history (exported copies live in web/public/model)
-ml/artifacts/*.pt
-ml/artifacts/*.pth
-ml/artifacts/checkpoints/
+# Model artifacts bigger than we want in git history. The shipped copy lives in
+# web/public/model/ and is produced by ml/export.py; docs/metrics.md holds the numbers.
+ml/artifacts/
 
 # OS / editor
 .DS_Store

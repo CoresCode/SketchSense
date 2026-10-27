@@ -22,12 +22,13 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 SUPERSAMPLE = 4
+CANVAS = 256  # working resolution; 256/64 = 4x box downsample, exactly reproducible in canvas
 STROKE_WIDTH = 6  # in supersampled pixels
 PAD = 18  # in supersampled pixels
 
 
 def normalise_strokes(
-    strokes: Sequence[Sequence[Sequence[float]]], canvas: int = 256, pad: int = PAD
+    strokes: Sequence[Sequence[Sequence[float]]], canvas: int = CANVAS, pad: int = PAD
 ) -> list[np.ndarray]:
     """Return stroke polylines in canvas coordinates, or [] if nothing is drawable."""
     lines: list[np.ndarray] = []
@@ -64,7 +65,7 @@ def normalise_strokes(
 def rasterize(
     strokes: Sequence[Sequence[Sequence[float]]],
     size: int = 64,
-    canvas: int = 256,
+    canvas: int = CANVAS,
     pad: int = PAD,
     line_width: int = STROKE_WIDTH,
 ) -> np.ndarray:

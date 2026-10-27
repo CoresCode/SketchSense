@@ -99,7 +99,11 @@ export default function DrawCanvas({ onChange, resetSignal, disabled, hint }: Pr
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (disabled) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // some browsers reject capture for already-inactive pointers; drawing still works
+    }
     drawingRef.current = true;
     strokesRef.current.push([toLocal(e)]);
     paint();
@@ -142,19 +146,21 @@ export default function DrawCanvas({ onChange, resetSignal, disabled, hint }: Pr
 
   return (
     <div className="relative">
-      <canvas
-        ref={canvasRef}
-        width={LOGICAL}
-        height={LOGICAL}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endStroke}
-        onPointerCancel={endStroke}
-        onPointerLeave={endStroke}
-        className="aspect-square w-full touch-none rounded-2xl bg-[#fffaf0] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9),inset_0_0_0_1px_rgba(0,0,0,0.08)]"
-        style={{ cursor: disabled ? "not-allowed" : "crosshair" }}
-        aria-label="Drawing canvas"
-      />
+      <div className="mx-auto w-full">
+        <canvas
+          ref={canvasRef}
+          width={LOGICAL}
+          height={LOGICAL}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endStroke}
+          onPointerCancel={endStroke}
+          onPointerLeave={endStroke}
+          className="aspect-square w-full touch-none rounded-2xl bg-[#fffaf0] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9),inset_0_0_0_1px_rgba(0,0,0,0.08)]"
+          style={{ cursor: disabled ? "not-allowed" : "crosshair" }}
+          aria-label="Drawing canvas"
+        />
+      </div>
 
       {hint && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -162,7 +168,7 @@ export default function DrawCanvas({ onChange, resetSignal, disabled, hint }: Pr
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mx-auto mt-3 flex w-full max-w-[540px] items-center justify-between">
         <p className="text-xs text-white/40">Draw with mouse, finger or stylus</p>
         <div className="flex gap-2">
           <button

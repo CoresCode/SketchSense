@@ -39,6 +39,7 @@ def main() -> None:
 
     ckpt = torch.load(args.ckpt, map_location="cpu")
     classes: list[str] = ckpt["classes"]
+    display: list[str] = ckpt.get("names") or [c.replace("_", " ") for c in classes]
     size: int = ckpt["size"]
     model = build(len(classes))
     model.load_state_dict(ckpt["model"])
@@ -106,7 +107,7 @@ def main() -> None:
     # ---- ship it -----------------------------------------------------------
     args.web.mkdir(parents=True, exist_ok=True)
     (args.web / "model.onnx").write_bytes(args.out.read_bytes())
-    labels = {"size": size, "classes": classes, "valTop1": ckpt.get("val_top1")}
+    labels = {"size": size, "classes": display, "valTop1": ckpt.get("val_top1")}
     (args.web / "labels.json").write_text(json.dumps(labels, indent=2), encoding="utf-8")
     print(f"copied model + labels to {args.web}")
 

@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from raster import CANVAS, LINE_WIDTH, PAD, rasterize_uint8
+from raster import CANVAS, PAD, STROKE_WIDTH, rasterize_uint8
 
 HERE = Path(__file__).parent
 REPO = HERE.parent
@@ -68,7 +68,7 @@ def main() -> None:
         "size": 64,
         "canvas": CANVAS,
         "pad": PAD,
-        "lineWidth": LINE_WIDTH,
+        "lineWidth": STROKE_WIDTH,
         "source": "ml/raster.py (PIL, BOX downsample)",
         "samples": samples,
     }

@@ -35,13 +35,15 @@ function ensureScratch() {
 }
 
 export function hasInk(strokes: Stroke[]): boolean {
-  return strokes.some((s) => s.length >= 2);
+  return strokes.some((s) => s.length >= 1);
 }
 
 /** Strokes (any coordinate space) -> 64x64 grayscale, row-major, 0..1. */
 export function rasterize(strokes: Stroke[]): Float32Array {
   const out = new Float32Array(SIZE * SIZE);
-  const usable = strokes.filter((s) => s.length >= 2);
+  // A tap is a single point: ml/raster.py draws it as a dot, so we must too, otherwise
+  // eyes and punctuation silently disappear from the browser's version of the input.
+  const usable = strokes.filter((s) => s.length >= 1);
   if (usable.length === 0) return out;
 
   let minX = Infinity;
@@ -62,7 +64,7 @@ export function rasterize(strokes: Stroke[]): Float32Array {
   const cy = (minY + maxY) / 2;
   const scale = extent < 1e-3 ? 1 : (CANVAS - 2 * PAD) / extent;
 
-  const { canvas, ctx } = ensureScratch();
+  const { ctx } = ensureScratch();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, CANVAS, CANVAS);
@@ -76,6 +78,14 @@ export function rasterize(strokes: Stroke[]): Float32Array {
   ctx.lineJoin = "round";
 
   for (const stroke of usable) {
+    if (stroke.length === 1) {
+      const x = (stroke[0].x - cx) * scale + CANVAS / 2;
+      const y = (stroke[0].y - cy) * scale + CANVAS / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, LINE_WIDTH / 2, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
     ctx.beginPath();
     for (let i = 0; i < stroke.length; i++) {
       const x = (stroke[i].x - cx) * scale + CANVAS / 2;

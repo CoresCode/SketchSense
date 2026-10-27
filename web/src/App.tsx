@@ -141,7 +141,7 @@ export default function App() {
           ))}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[560px_minmax(0,1fr)]">
           <div className="space-y-3">
             {mode === "speed" && model && (
               <SpeedRound
@@ -162,19 +162,41 @@ export default function App() {
                 disabled={!ready}
                 hint={ready && !ink ? "draw anything" : undefined}
               />
+
+              {model && (
+                <details className="mt-4 border-t border-white/8 pt-3">
+                  <summary className="cursor-pointer text-xs text-white/40 transition hover:text-white/70">
+                    {model.classes.length} things it knows — see the full list
+                  </summary>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {model.classes.map((c) => (
+                      <span
+                        key={c}
+                        className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[11px] text-white/45 capitalize"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </details>
+              )}
             </div>
           </div>
 
           <div className="space-y-4">
-            <div className="glass rounded-2xl p-4 sm:p-5 lg:sticky lg:top-5">
+            <div className="glass min-h-[300px] rounded-2xl p-4 sm:p-5 lg:sticky lg:top-5">
               {modelState.status === "missing" ? (
                 <div className="py-10 text-center">
                   <p className="text-sm font-medium text-white/70">No model yet</p>
-                  <p className="mt-2 text-xs leading-relaxed text-white/40">
-                    Run <code className="rounded bg-white/10 px-1">python train.py</code> then{" "}
-                    <code className="rounded bg-white/10 px-1">python export.py</code> in{" "}
-                    <code className="rounded bg-white/10 px-1">ml/</code> and reload.
+                  <p className="mx-auto mt-2 max-w-xs text-xs leading-relaxed text-white/40">
+                    Train it once, then reload this page:
                   </p>
+                  <pre className="mx-auto mt-3 w-fit rounded-lg bg-black/40 px-3 py-2 text-left font-mono text-[11px] leading-relaxed text-white/50">
+{`cd ml
+..\\.venv\\Scripts\\python.exe train.py
+..\\.venv\\Scripts\\python.exe export.py
+..\\.venv\\Scripts\\python.exe report.py`}
+                  </pre>
                 </div>
               ) : modelState.status === "error" ? (
                 <div className="py-10 text-center">

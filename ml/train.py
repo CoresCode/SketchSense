@@ -207,6 +207,7 @@ def main() -> None:
                 {
                     "model": model.state_dict(),
                     "classes": classes,
+                    "names": [manifest.get("names", {}).get(c, c.replace("_", " ")) for c in classes],
                     "size": manifest["size"],
                     "val_top1": val_top1,
                     "val_top5": val_top5,

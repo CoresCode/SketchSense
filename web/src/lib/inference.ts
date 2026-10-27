@@ -1,4 +1,6 @@
-import * as ort from "onnxruntime-web";
+// The /wasm entry excludes the WebGPU (jsep) runtime: 14 MB instead of 29 MB, and it
+// keeps every emitted asset comfortably under Cloudflare Pages' 25 MiB per-file limit.
+import * as ort from "onnxruntime-web/wasm";
 import { SIZE } from "./raster";
 
 export type Prediction = { index: number; label: string; prob: number };
@@ -39,9 +41,10 @@ let runtimeConfigured = false;
 function configureRuntime() {
   if (runtimeConfigured) return;
   // Single-threaded WASM on purpose: no COOP/COEP headers required (Cloudflare Pages
-  // friendly), one ~10 MB artifact, and a 1.6 M-parameter net at 64x64 runs in ~2 ms.
+  // friendly), one ~14 MB artifact, and a 1.6 M-parameter net at 64x64 runs in ~2 ms.
+  // wasmPaths is left to Vite: the /wasm entry resolves its own .wasm asset URL, so the
+  // file is hashed and cached with the rest of the bundle.
   ort.env.wasm.numThreads = 1;
-  ort.env.wasm.wasmPaths = "/ort/";
   ort.env.logLevel = "error";
   runtimeConfigured = true;
 }
@@ -51,7 +54,11 @@ export async function loadSketchModel(onStatus?: (m: string) => void): Promise<S
 
   onStatus?.("reading labels");
   const labelsRes = await fetch("/model/labels.json");
-  if (!labelsRes.ok) throw new ModelMissingError("model/labels.json is missing");
+  // Vite's dev server answers missing files with index.html, so status alone is not enough.
+  const labelsType = labelsRes.headers.get("content-type") ?? "";
+  if (!labelsRes.ok || !labelsType.includes("json")) {
+    throw new ModelMissingError("model/labels.json is missing");
+  }
   const labels = (await labelsRes.json()) as {
     classes: string[];
     size: number;
@@ -62,6 +69,10 @@ export async function loadSketchModel(onStatus?: (m: string) => void): Promise<S
   const modelRes = await fetch("/model/model.onnx");
   if (!modelRes.ok) throw new ModelMissingError("model/model.onnx is missing");
   const bytes = new Uint8Array(await modelRes.arrayBuffer());
+  // A 14 MB binary that starts with "<!doctype" is an HTML error page, not a model.
+  if (bytes.length < 1024 || (bytes[0] === 0x3c && bytes[1] === 0x21)) {
+    throw new ModelMissingError("model/model.onnx is missing");
+  }
 
   onStatus?.("warming up");
   const session = await ort.InferenceSession.create(bytes, {
