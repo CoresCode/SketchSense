@@ -235,45 +235,6 @@ export default function App() {
             )}
           </div>
         </div>
-
-        <section className="mt-10 grid gap-3 sm:grid-cols-3">
-          {[
-            [
-              "Trained, not borrowed",
-              model
-                ? `${model.classes.length} QuickDraw categories, residual CNN, ~1.6M parameters.`
-                : "Residual CNN trained from raw QuickDraw strokes.",
-            ],
-            [
-              "Measured honestly",
-              model?.valTop1 != null
-                ? `${(model.valTop1 * 100).toFixed(1)}% top-1 on a held-out split, not on training data.`
-                : "Top-1 / top-5 on a held-out split.",
-            ],
-            [
-              "Zero backend",
-              ms !== null
-                ? `ONNX Runtime Web, ${ms.toFixed(1)} ms per guess on this device.`
-                : "ONNX Runtime Web, a few ms per guess.",
-            ],
-          ].map(([title, body]) => (
-            <div key={title} className="glass rounded-2xl p-4">
-              <p className="font-display text-sm font-semibold text-white/90">{title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/45">{body}</p>
-            </div>
-          ))}
-        </section>
-
-        <footer className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-white/8 pt-5 text-xs text-white/30 sm:flex-row sm:items-center">
-          <p>
-            Built by{" "}
-            <a href="https://anuragyadavcodes.com" className="text-white/55 hover:text-white">
-              Anurag Yadav
-            </a>{" "}
-            · AIML, final year diploma
-          </p>
-          <p className="font-mono">ONNX · React · PyTorch · QuickDraw</p>
-        </footer>
       </main>
     </div>
   );
