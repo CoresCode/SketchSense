@@ -66,7 +66,7 @@ non-zero unless top-1 agreement is 100% and max logit drift is < 0.01. BatchNorm
 resize alignments are exactly the kind of thing that changes behaviour during export.
 
 **3. Inference runs where the user is.**
-Single-threaded WASM was chosen over WebGPU on purpose: one ~10 MB artifact instead of a
+Single-threaded WASM was chosen over WebGPU on purpose: one ~15 MB artifact instead of a
 jsep build, no COOP/COEP headers, and a 1.6 M-parameter net at 64×64 is fast enough that the
 GPU would be wasted. The whole site is static files.
 
@@ -88,7 +88,7 @@ cd ml
 # front end
 cd ..\web
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://127.0.0.1:5180
 npm run build    # static output in dist/
 ```
 
