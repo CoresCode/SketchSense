@@ -84,3 +84,20 @@ knife
 light bulb
 windmill
 bridge
+# --- second wave: 16 more, chosen for visual distinctness (good for the guess game)
+smiley face
+snowflake
+cookie
+cactus
+carrot
+pineapple
+watermelon
+lollipop
+teapot
+eyeglasses
+moustache
+hand
+eye
+angel
+bowtie
+flamingo

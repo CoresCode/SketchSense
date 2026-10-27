@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DrawCanvas from "./components/DrawCanvas";
 import PredictionBars from "./components/PredictionBars";
 import SpeedRound from "./components/SpeedRound";
+import AiDrawGame from "./components/AiDrawGame";
 import { hasInk, rasterize, rasterToDataUrl, type Stroke } from "./lib/raster";
 import {
   loadSketchModel,
@@ -21,7 +22,7 @@ export default function App() {
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [preds, setPreds] = useState<Prediction[]>([]);
   const [ms, setMs] = useState<number | null>(null);
-  const [mode, setMode] = useState<"free" | "speed">("free");
+  const [mode, setMode] = useState<"free" | "speed" | "aidraw">("free");
   const [resetSignal, setResetSignal] = useState(0);
 
   useEffect(() => {
@@ -114,8 +115,9 @@ export default function App() {
             <span className="text-gradient">We'll name it.</span>
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/50 sm:text-base">
-            A small convolutional network trained from scratch on Google QuickDraw. It runs on your
-            device through WebAssembly — no server, no upload, no API key.
+            A small convolutional network trained from scratch on Google QuickDraw. Draw something
+            and it names it — or turn it around and guess what it draws. It runs on your device
+            through WebAssembly: no server, no upload, no API key.
           </p>
         </section>
 
@@ -124,12 +126,13 @@ export default function App() {
             [
               ["free", "Free draw"],
               ["speed", "Speed round"],
+              ["aidraw", "AI draws"],
             ] as const
           ).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setMode(key)}
-              disabled={!ready && key === "speed"}
+              disabled={!ready && key !== "free"}
               className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
                 mode === key
                   ? "bg-white text-ink-950 shadow"
@@ -141,6 +144,14 @@ export default function App() {
           ))}
         </div>
 
+        {mode === "aidraw" ? (
+          <AiDrawGame
+            model={model}
+            onExit={() => {
+              setMode("free");
+            }}
+          />
+        ) : (
         <div className="grid gap-4 lg:grid-cols-[560px_minmax(0,1fr)]">
           <div className="space-y-3">
             {mode === "speed" && model && (
@@ -235,6 +246,7 @@ export default function App() {
             )}
           </div>
         </div>
+        )}
       </main>
     </div>
   );

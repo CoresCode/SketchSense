@@ -37,7 +37,11 @@ def main() -> None:
     ckpt = torch.load(args.ckpt, map_location=device)
     classes: list[str] = ckpt["classes"]
     display: list[str] = ckpt.get("names") or [c.replace("_", " ") for c in classes]
-    model = build(len(classes)).to(device).eval()
+    model = build(
+        len(classes),
+        widths=tuple(ckpt.get("widths", (24, 48, 96, 192))),
+        stem_stride=ckpt.get("stem_stride", 1),
+    ).to(device).eval()
     model.load_state_dict(ckpt["model"])
 
     X, y, manifest = load_processed(args.processed)

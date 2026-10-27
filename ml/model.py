@@ -34,11 +34,22 @@ class Block(nn.Module):
 
 
 class SketchNet(nn.Module):
-    def __init__(self, num_classes: int, widths: tuple[int, ...] = WIDTHS, dropout: float = 0.1) -> None:
+    def __init__(
+        self,
+        num_classes: int,
+        widths: tuple[int, ...] = WIDTHS,
+        dropout: float = 0.1,
+        stem_stride: int = 1,
+    ) -> None:
         super().__init__()
         w1, w2, w3, w4 = widths
+        # stem_stride=2 halves the spatial size immediately, which removes ~3/4 of the
+        # convolution work in the first stage. Doodles have very little high-frequency
+        # detail, so this is nearly free in accuracy and a large win in throughput.
         self.stem = nn.Sequential(
-            nn.Conv2d(1, w1, 3, 1, 1, bias=False), nn.BatchNorm2d(w1), nn.ReLU(inplace=True)
+            nn.Conv2d(1, w1, 3, stem_stride, 1, bias=False),
+            nn.BatchNorm2d(w1),
+            nn.ReLU(inplace=True),
         )
         self.stage1 = nn.Sequential(Block(w1, w1), Block(w1, w1))          # 64x64
         self.stage2 = nn.Sequential(Block(w1, w2, 2), Block(w2, w2))        # 32x32
@@ -61,5 +72,9 @@ def count_params(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters())
 
 
-def build(num_classes: int) -> SketchNet:
-    return SketchNet(num_classes)
+def build(
+    num_classes: int,
+    widths: tuple[int, ...] = WIDTHS,
+    stem_stride: int = 1,
+) -> SketchNet:
+    return SketchNet(num_classes, widths=widths, stem_stride=stem_stride)

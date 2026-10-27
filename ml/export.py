@@ -41,7 +41,7 @@ def main() -> None:
     classes: list[str] = ckpt["classes"]
     display: list[str] = ckpt.get("names") or [c.replace("_", " ") for c in classes]
     size: int = ckpt["size"]
-    model = build(len(classes))
+    model = build(len(classes), widths=tuple(ckpt.get("widths", (24, 48, 96, 192))), stem_stride=ckpt.get("stem_stride", 1))
     model.load_state_dict(ckpt["model"])
     model.eval()
     has_bn = any(isinstance(m, torch.nn.BatchNorm2d) for m in model.modules())

@@ -111,7 +111,13 @@ def main() -> None:
     ap.add_argument("--subset", type=float, default=1.0, help="fraction of train set per epoch (fast experiments)")
     ap.add_argument("--seed", type=int, default=1337)
     ap.add_argument("--run-name", type=str, default="baseline")
+    ap.add_argument("--widths", type=str, default="24,48,96,192", help="channel widths, e.g. 24,48,96,192")
+    ap.add_argument("--stem-stride", type=int, default=2, help="2 halves the resolution up front (4x faster)")
     args = ap.parse_args()
+
+    widths = tuple(int(w) for w in args.widths.split(","))
+    if len(widths) != 4:
+        raise SystemExit("--widths needs exactly 4 comma-separated ints")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(args.seed)
@@ -129,7 +135,7 @@ def main() -> None:
     train_idx, val_idx = stratified_split(y, args.val_frac, args.seed)
     print(f"train {len(train_idx):,}  val {len(val_idx):,}", flush=True)
 
-    model = build(len(classes)).to(device)
+    model = build(len(classes), widths=widths, stem_stride=args.stem_stride).to(device)
     model = model.to(memory_format=torch.channels_last)
     print(f"model params: {count_params(model)/1e6:.2f}M", flush=True)
 
@@ -212,6 +218,8 @@ def main() -> None:
                     "val_top1": val_top1,
                     "val_top5": val_top5,
                     "epoch": epoch,
+                    "widths": list(widths),
+                    "stem_stride": args.stem_stride,
                     "params": count_params(model),
                 },
                 args.out / "best.pt",
@@ -225,6 +233,8 @@ def main() -> None:
         "best_val_top1": best,
         "epochs": args.epochs,
         "params": count_params(model),
+        "widths": list(widths),
+        "stem_stride": args.stem_stride,
         "classes": len(classes),
         "train_size": int(len(train_idx)),
         "val_size": int(len(val_idx)),
