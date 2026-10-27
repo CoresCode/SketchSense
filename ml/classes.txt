@@ -1,0 +1,86 @@
+# SketchSense class list (Google QuickDraw category names, one per line).
+# Ordered roughly by "most fun to draw first" so a partial download is still playable.
+cat
+dog
+house
+tree
+sun
+moon
+star
+flower
+fish
+butterfly
+apple
+banana
+pizza
+cake
+ice cream
+donut
+coffee cup
+hamburger
+strawberry
+car
+bicycle
+bus
+train
+airplane
+helicopter
+sailboat
+flying saucer
+umbrella
+cloud
+rainbow
+lightning
+snowman
+mountain
+pencil
+book
+scissors
+hammer
+key
+clock
+telephone
+camera
+computer
+laptop
+guitar
+violin
+drums
+hat
+shoe
+skateboard
+soccer ball
+penguin
+owl
+elephant
+lion
+horse
+cow
+rabbit
+frog
+snake
+shark
+whale
+octopus
+spider
+duck
+panda
+zebra
+dragon
+crown
+diamond
+skull
+sword
+mushroom
+leaf
+ladder
+door
+envelope
+chair
+cup
+spoon
+fork
+knife
+light bulb
+windmill
+bridge

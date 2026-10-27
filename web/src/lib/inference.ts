@@ -1,0 +1,102 @@
+import * as ort from "onnxruntime-web";
+import { SIZE } from "./raster";
+
+export type Prediction = { index: number; label: string; prob: number };
+
+export type ModelInfo = {
+  classes: string[];
+  valTop1: number | null;
+  size: number;
+};
+
+export class ModelMissingError extends Error {}
+
+export type SketchModel = ModelInfo & {
+  predict: (input: Float32Array) => Promise<{ preds: Prediction[]; ms: number }>;
+  provider: string;
+};
+
+function softmaxTopK(logits: Float32Array, k: number): { index: number; prob: number }[] {
+  let max = -Infinity;
+  for (let i = 0; i < logits.length; i++) if (logits[i] > max) max = logits[i];
+
+  const exps = new Float32Array(logits.length);
+  let sum = 0;
+  for (let i = 0; i < logits.length; i++) {
+    const e = Math.exp(logits[i] - max);
+    exps[i] = e;
+    sum += e;
+  }
+
+  return Array.from(exps.keys())
+    .sort((a, b) => exps[b] - exps[a])
+    .slice(0, k)
+    .map((i) => ({ index: i, prob: exps[i] / sum }));
+}
+
+let runtimeConfigured = false;
+
+function configureRuntime() {
+  if (runtimeConfigured) return;
+  // Single-threaded WASM on purpose: no COOP/COEP headers required (Cloudflare Pages
+  // friendly), one ~10 MB artifact, and a 1.6 M-parameter net at 64x64 runs in ~2 ms.
+  ort.env.wasm.numThreads = 1;
+  ort.env.wasm.wasmPaths = "/ort/";
+  ort.env.logLevel = "error";
+  runtimeConfigured = true;
+}
+
+export async function loadSketchModel(onStatus?: (m: string) => void): Promise<SketchModel> {
+  configureRuntime();
+
+  onStatus?.("reading labels");
+  const labelsRes = await fetch("/model/labels.json");
+  if (!labelsRes.ok) throw new ModelMissingError("model/labels.json is missing");
+  const labels = (await labelsRes.json()) as {
+    classes: string[];
+    size: number;
+    valTop1: number | null;
+  };
+
+  onStatus?.("downloading model");
+  const modelRes = await fetch("/model/model.onnx");
+  if (!modelRes.ok) throw new ModelMissingError("model/model.onnx is missing");
+  const bytes = new Uint8Array(await modelRes.arrayBuffer());
+
+  onStatus?.("warming up");
+  const session = await ort.InferenceSession.create(bytes, {
+    executionProviders: ["wasm"],
+    graphOptimizationLevel: "all",
+  });
+
+  const inputName = session.inputNames[0];
+  const outputName = session.outputNames[0];
+  const dim = labels.size ?? SIZE;
+
+  // One dummy pass: allocates the arenas so the first real stroke is not slow.
+  await session.run({
+    [inputName]: new ort.Tensor("float32", new Float32Array(dim * dim), [1, 1, dim, dim]),
+  });
+
+  const predict = async (input: Float32Array) => {
+    const t0 = performance.now();
+    const out = await session.run({
+      [inputName]: new ort.Tensor("float32", input, [1, 1, dim, dim]),
+    });
+    const ms = performance.now() - t0;
+    const logits = out[outputName].data as Float32Array;
+    const preds = softmaxTopK(logits, 5).map((p) => ({
+      ...p,
+      label: labels.classes[p.index] ?? "?",
+    }));
+    return { preds, ms };
+  };
+
+  return {
+    classes: labels.classes,
+    size: dim,
+    valTop1: labels.valTop1 ?? null,
+    provider: "wasm",
+    predict,
+  };
+}

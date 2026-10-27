@@ -1,0 +1,13 @@
+# Core training stack (torch/torchvision already present in the system Python 3.14 install)
+numpy
+pillow
+tqdm
+matplotlib
+
+# Export + numerical parity checks
+onnx
+onnxruntime
+
+# Optional: only needed if we later switch to the 28x28 rasterized QuickDraw mirror
+# (kept commented so `pip install -r` stays small on a slow connection)
+# tensorboard

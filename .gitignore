@@ -1,0 +1,33 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Datasets & heavy artifacts (regenerate with ml/download.py + ml/prepare.py)
+ml/data/
+!ml/data/.gitkeep
+ml/runs/
+*.npy
+*.ndjson
+
+# Node
+node_modules/
+web/dist/
+web/.vite/
+npm-debug.log*
+
+# Model artifacts bigger than we want in git history (exported copies live in web/public/model)
+ml/artifacts/*.pt
+ml/artifacts/*.pth
+ml/artifacts/checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local env
+.env
+.env.local

@@ -1,0 +1,42 @@
+{
+  "run_name": "baseline",
+  "best_val_top1": 0.4666666666666667,
+  "epochs": 3,
+  "params": 1573419,
+  "classes": 3,
+  "train_size": 750,
+  "val_size": 450,
+  "batch": 64,
+  "lr": 0.002,
+  "train_minutes": 0.6,
+  "device": "NVIDIA GeForce RTX 5060 Laptop GPU",
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.8654388111432393,
+      "train_acc": 0.6266666666666667,
+      "val_top1": 0.3333333333333333,
+      "val_top5": 1.0,
+      "lr": 0.0018064453784890654,
+      "seconds": 34.3
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.4480363159974416,
+      "train_acc": 0.8866666666666667,
+      "val_top1": 0.3333333333333333,
+      "val_top5": 1.0,
+      "lr": 0.0006375674114684516,
+      "seconds": 0.8
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.35443731292088826,
+      "train_acc": 0.9213333333333333,
+      "val_top1": 0.4666666666666667,
+      "val_top5": 1.0,
+      "lr": 5.9516380030332425e-06,
+      "seconds": 0.8
+    }
+  ]
+}
