@@ -54,7 +54,7 @@ def stratified_split(y: np.ndarray, val_frac: float, seed: int) -> tuple[np.ndar
 
 
 def affine_augment(x: torch.Tensor, max_rot: float = 12.0, max_scale: float = 0.12,
-                   max_shift: float = 0.08) -> torch.Tensor:
+                   max_shift: float = 0.08, mode: str = "bilinear") -> torch.Tensor:
     """Random rotate/scale/translate, done on GPU with a single grid_sample."""
     b = x.shape[0]
     dev = x.device
@@ -72,12 +72,14 @@ def affine_augment(x: torch.Tensor, max_rot: float = 12.0, max_scale: float = 0.
     theta[:, 1, 1] = cos
     theta[:, 1, 2] = ty
     grid = F.affine_grid(theta, x.shape, align_corners=False)
-    return F.grid_sample(x, grid, align_corners=False, padding_mode="zeros")
+    return F.grid_sample(x, grid, align_corners=False, padding_mode="zeros", mode=mode)
 
 
 def to_batch(X: np.ndarray, idx: np.ndarray, device: torch.device) -> torch.Tensor:
-    arr = X[idx].astype(np.float32) / 255.0
-    return torch.from_numpy(arr).unsqueeze(1).to(device, non_blocking=True)
+    # Send uint8 and convert on the card: 4x less PCIe traffic than float32, and the
+    # division is exact either way, so the model sees identical values.
+    x = torch.from_numpy(X[idx]).to(device, non_blocking=True).unsqueeze(1)
+    return x.float().div_(255.0)
 
 
 @torch.no_grad()
@@ -158,6 +160,11 @@ def main() -> None:
         if args.subset < 1.0:
             order = order[: int(len(order) * args.subset)]
         running = correct = seen = 0.0
+        # Accumulate the running stats on the card. Reading them every step forces a
+        # full device sync, which stops the CPU from preparing the next batch while
+        # the GPU is still busy -- about 20% of wall time on a small model.
+        running_t = torch.zeros((), device=device)
+        correct_t = torch.zeros((), device=device)
         ep_start = time.time()
 
         for step in range(steps_per_epoch):
@@ -177,11 +184,13 @@ def main() -> None:
             scaler.update()
             sched.step()
 
-            running += float(loss.detach()) * len(idx)
-            correct += int((logits.detach().argmax(1) == yb).sum())
+            running_t += loss.detach() * len(idx)
+            correct_t += (logits.detach().argmax(1) == yb).sum()
             seen += len(idx)
 
-            if step % 100 == 0:
+            if step % 100 == 0 or step == steps_per_epoch - 1:
+                running = float(running_t)
+                correct = int(correct_t)
                 done = (step + 1) / steps_per_epoch
                 per_step = (time.time() - ep_start) / (step + 1)
                 print(
@@ -190,6 +199,8 @@ def main() -> None:
                     flush=True,
                 )
 
+        running = float(running_t)
+        correct = int(correct_t)
         val_top1, val_top5 = evaluate(model, X, y, val_idx, device)
         row = {
             "epoch": epoch,
