@@ -77,14 +77,15 @@ def main() -> None:
         if len(pairs) >= 10:
             break
 
-    # confusion matrix image (row-normalised, log-ish scaling so 84 classes stay legible)
+    # confusion matrix image (row-normalised, log-ish scaling; every 5th class labelled
+    # so 100 categories stay readable instead of turning the axes into a black smear)
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     norm = matrix / np.maximum(matrix.sum(axis=1, keepdims=True), 1)
-    fig, ax = plt.subplots(figsize=(9, 9), dpi=140)
+    fig, ax = plt.subplots(figsize=(10, 10), dpi=160)
     fig.patch.set_facecolor("#0b0f18")
     ax.set_facecolor("#0b0f18")
     im = ax.imshow(norm, cmap="magma", vmin=0, vmax=max(0.25, float(np.percentile(norm, 99.7))))
@@ -92,9 +93,17 @@ def main() -> None:
                  color="#e6e9f0", fontsize=11)
     ax.set_xlabel("predicted", color="#8b93a7")
     ax.set_ylabel("true", color="#8b93a7")
-    ax.tick_params(colors="#8b93a7", labelsize=6)
-    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
-    cb.ax.tick_params(colors="#8b93a7", labelsize=6)
+    step = 5 if n > 40 else 1
+    ticks = list(range(0, n, step))
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
+    ax.set_xticklabels([display[i] for i in ticks], rotation=90, fontsize=7)
+    ax.set_yticklabels([display[i] for i in ticks], fontsize=7)
+    ax.tick_params(colors="#8b93a7", length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.02)
+    cb.ax.tick_params(colors="#8b93a7", labelsize=7)
     fig.tight_layout()
     args.docs.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.docs / "confusion_matrix.png", facecolor=fig.get_facecolor())

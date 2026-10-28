@@ -11,7 +11,7 @@ is no API key, and hosting is a static folder.
 
 | | |
 |---|---|
-| Classes | `84` QuickDraw categories |
+| Classes | `{{classes}}` QuickDraw categories |
 | Model | 4-stage residual CNN, **1.6 M parameters** |
 | Held-out top-1 | **{{val_top1}}** |
 | Held-out top-5 | **{{val_top5}}** |
@@ -20,6 +20,25 @@ is no API key, and hosting is a static folder.
 | Backend | none |
 
 ![SketchSense](docs/screenshot.png)
+
+---
+
+## Three ways to play
+
+| Mode | What it does |
+|---|---|
+| **Free draw** | Draw anything; the top-5 updates live as you draw, with confidence bars and a measured inference time. |
+| **Speed round** | Fixed time per doodle, points for speed, and the guess only counts above 35% confidence — so argmax-spam does not win. |
+| **AI draws** | The model plays the other side: real QuickDraw sketches are replayed stroke by stroke and you type what you think it is. |
+
+**AI draws** deserves a note on honesty: it is not a generative model. The sketches are real
+human drawings from the held-out data, animated in stroke order. What *is* model-driven is the
+difficulty — every candidate is scored by the classifier against its own label, so **easy** uses
+the sketches it is most certain about, and **hard** samples the ambiguous 20th–35th percentile
+and adds a wobble so the line looks like a hurried human hand.
+
+Guessing is free text with autocomplete and one-typo tolerance, not multiple choice, so it does
+not turn into a 4-way coin flip.
 
 ---
 
@@ -74,6 +93,19 @@ GPU would be wasted. The whole site is static files.
 Top-1 / top-5 on a stratified held-out split, a confusion-matrix export, and per-class
 accuracy in `docs/metrics.md`. The failure cases are the interesting part.
 
+**5. Speed came from looking, not guessing.**
+The first version trained at 990 images/s. Giving the stem convolution stride 2 — the input
+stays 64×64, the stem just halves resolution once, up front — took it to **4,033 images/s
+(4.07×)** for roughly a point of accuracy at epoch 1. Batch size was swept as well (128, 256,
+512, 1024); 256 won.
+
+Two smaller wins followed, both from profiling rather than intuition: the running loss and
+accuracy now accumulate on the GPU and are read once per 100 steps instead of every step
+(a per-step read forces a device sync), and batches cross PCIe as `uint8` and are converted on
+the card — 4× less traffic. Host-side step prep went from 6.0 ms to 0.9 ms in isolation.
+The scripts that produced these numbers are in `ml/sweep_arch.py`, `ml/tune_batch.py`,
+`ml/profile_input.py` and `ml/profile_step.py`.
+
 ## Run it
 
 ```powershell
@@ -81,8 +113,15 @@ accuracy in `docs/metrics.md`. The failure cases are the interesting part.
 cd ml
 ..\.venv\Scripts\python.exe download.py --max-sketches 12000 --workers 4
 ..\.venv\Scripts\python.exe prepare.py --limit 12000
-..\.venv\Scripts\python.exe train.py --epochs 12 --batch 256
-..\.venv\Scripts\python.exe export.py
+
+# 20 epochs from scratch, then a short low-LR warm restart for the last few points
+..\.venv\Scripts\python.exe train.py --epochs 20 --batch 256 --lr 0.002 --stem-stride 2 --out artifacts\run2
+..\.venv\Scripts\python.exe train.py --epochs 6 --batch 256 --lr 0.0004 --stem-stride 2 `
+    --init-from artifacts\run2\best.pt --out artifacts\run2b
+
+..\.venv\Scripts\python.exe export.py --ckpt artifacts\run2b\best.pt   # ONNX + parity gate
+..\.venv\Scripts\python.exe export_samples.py --ckpt artifacts\run2b\best.pt  # AI-draw sketches
+..\.venv\Scripts\python.exe report.py --ckpt artifacts\run2b\best.pt   # metrics + README numbers
 ..\.venv\Scripts\python.exe fixtures.py
 
 # front end
@@ -110,6 +149,9 @@ docs/    plan, metrics, screenshots
   distribution and the model is not claimed to handle them.
 * No temporal/state modelling of stroke order — two visually identical doodles drawn in a
   different order look the same to the model. That is a deliberate scope cut, not an oversight.
+* 100 of QuickDraw's 345 categories are trained. Adding more is a data change, not a code
+  change: edit `ml/classes.txt`, rerun the pipeline, retrain, re-export. The browser reads
+  whatever `labels.json` and `model.onnx` it is given.
 
 ## Credits
 

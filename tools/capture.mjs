@@ -39,7 +39,8 @@ const args = parseArgs(process.argv.slice(2));
 const url = args.url ?? "http://localhost:5173";
 const out = args.out ?? "docs/shots/sketchsense.png";
 const scene = args.scene ?? "house";
-const mode = args.mode ?? "draw"; // "draw" | "aidraw"
+const mode = args.mode ?? "draw"; // "draw" | "speed" | "aidraw"
+const difficulty = args.difficulty ?? "easy";
 const width = Number(args.width ?? 1440);
 const height = Number(args.height ?? 1200);
 const port = Number(args.port ?? 9333);
@@ -217,7 +218,7 @@ async function main() {
     if (mode === "aidraw") {
       if (!(await clickByText("AI draws"))) throw new Error('no "AI draws" tab found');
       await sleep(900); // samples json + idle card
-      if (!(await clickByText("easy"))) throw new Error('no "Easy" difficulty button found');
+      if (!(await clickByText(difficulty))) throw new Error(`no "${difficulty}" difficulty button found`);
       await sleep(3600); // let the stroke animation finish
       const readout = await send("Runtime.evaluate", {
         expression: `document.body.innerText.slice(0, 400)`,
@@ -229,6 +230,13 @@ async function main() {
       console.log(`[capture] wrote ${out}`);
       ws.close();
       return;
+    }
+
+    if (mode === "speed") {
+      if (!(await clickByText("Speed round"))) throw new Error('no "Speed round" tab found');
+      await sleep(600);
+      if (!(await clickByText("start"))) throw new Error('no "Start" button found');
+      await sleep(500);
     }
 
     const box = await send("Runtime.evaluate", {

@@ -115,6 +115,7 @@ def main() -> None:
     ap.add_argument("--run-name", type=str, default="baseline")
     ap.add_argument("--widths", type=str, default="24,48,96,192", help="channel widths, e.g. 24,48,96,192")
     ap.add_argument("--stem-stride", type=int, default=2, help="2 halves the resolution up front (4x faster)")
+    ap.add_argument("--init-from", type=Path, default=None, help="warm-start weights from a checkpoint")
     args = ap.parse_args()
 
     widths = tuple(int(w) for w in args.widths.split(","))
@@ -138,6 +139,14 @@ def main() -> None:
     print(f"train {len(train_idx):,}  val {len(val_idx):,}", flush=True)
 
     model = build(len(classes), widths=widths, stem_stride=args.stem_stride).to(device)
+    if args.init_from is not None:
+        seed_ckpt = torch.load(args.init_from, map_location=device, weights_only=False)
+        model.load_state_dict(seed_ckpt["model"])
+        print(
+            f"warm start from {args.init_from.name} (epoch {seed_ckpt.get('epoch')},"
+            f" val top1 {seed_ckpt.get('val_top1')})",
+            flush=True,
+        )
     model = model.to(memory_format=torch.channels_last)
     print(f"model params: {count_params(model)/1e6:.2f}M", flush=True)
 

@@ -1,6 +1,6 @@
 # Deploying SketchSense
 
-The whole site is static: HTML, JS, one 4 MB ONNX file and the ONNX Runtime wasm. No server,
+The whole site is static: HTML, JS, one 6.4 MB ONNX file and the ONNX Runtime wasm. No server,
 no environment variables, no cold starts. That is a direct consequence of running inference
 in the browser — it is why a free tier is genuinely enough here.
 
@@ -21,7 +21,7 @@ Get-ChildItem dist -Recurse -File |
 ```
 
 Files must stay under Cloudflare Pages' **25 MiB per file** limit. The wasm runtime is the
-biggest artefact (~10-20 MB depending on the ORT version); the model is a few MB.
+biggest artefact (~15 MB depending on the ORT version); the model is 6.4 MB.
 
 ## 2. Publish
 
@@ -55,16 +55,15 @@ Then link it from the portfolio site:
 
 `web/public/_headers` is copied into `dist/` and controls caching on Pages:
 
-* `/ort/*` — immutable for a year (the runtime only changes when ORT is upgraded)
 * `/model/*` — short-lived, because retraining replaces the file at the same path
-* everything else — default
+* everything else — default (hashed assets get immutable caching from Cloudflare anyway)
 
 ## Notes
 
 * `dist/` is gitignored. The committed source of truth for the model is
   `web/public/model/{model.onnx,labels.json}`, produced by `ml/export.py`.
-* If a deploy shows a blank page, check the console for a 404 on
-  `/ort/ort-wasm-simd-threaded.wasm` — that means `postinstall` did not run, so run
-  `node scripts/copy-ort.mjs` manually.
+* `onnxruntime-web/wasm` resolves and bundles its own `.wasm` file, so the runtime lands in
+  `dist/assets/` with a content hash. There is no separate copy to maintain — an earlier
+  version copied the same 14 MB into `public/ort/` as well, which just doubled the upload.
 * Pages serves `.wasm` with `application/wasm`, so `WebAssembly.instantiateStreaming` works
   without extra configuration.

@@ -15,7 +15,6 @@ ml/runs/
 node_modules/
 web/dist/
 web/.vite/
-web/public/ort/
 npm-debug.log*
 
 # Model artifacts bigger than we want in git history. The shipped copy lives in
