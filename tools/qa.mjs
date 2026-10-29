@@ -211,6 +211,13 @@ async function main() {
     await b.screenshot(shot);
     console.log(`[qa] wrote ${shot}`);
 
+    // ---- rasteriser parity page --------------------------------------------------------
+    await b.send("Page.navigate", { url: `${new URL(url).origin}/raster-check.html` });
+    const parity = await b.waitFor(async () => (await b.bodyText()).includes("24/24"), {
+      timeout: 25000,
+    });
+    check("browser rasteriser matches Python on all 24 fixtures", parity);
+
     // ---- console / network -------------------------------------------------------------
     const noisy = [...new Set(consoleErrors)];
     check("no console errors or warnings", noisy.length === 0, noisy.join(" | ").slice(0, 220));
