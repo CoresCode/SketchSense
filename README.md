@@ -112,6 +112,16 @@ the card — 4× less traffic. Host-side step prep went from 6.0 ms to 0.9 ms in
 The scripts that produced these numbers are in `ml/sweep_arch.py`, `ml/tune_batch.py`,
 `ml/profile_input.py` and `ml/profile_step.py`.
 
+## Where it stopped, and why
+
+A 40-epoch from-scratch run (`quickdraw-100-long40`) landed at **90.61%** top-1 against the
+shipped warm-restart model's **90.57%** — 0.04 points, i.e. inside the noise of a 72k-sample
+split. It also put *fewer* classes above the 80% floor the speed round draws its prompts from
+(92 vs 95), so the older checkpoint is the one that ships. Past ~90% the remaining error is
+concentrated in genuinely ambiguous classes — dog/horse, violin/guitar, cup/coffee cup — and
+more epochs only trade one for another. The 14 MB wasm plus a 6.1 MB model is the size that
+buys ~90%, and the write-up is more useful than another 0.1.
+
 ## Run it
 
 ```powershell
@@ -120,14 +130,16 @@ cd ml
 ..\.venv\Scripts\python.exe download.py --max-sketches 12000 --workers 4
 ..\.venv\Scripts\python.exe prepare.py --limit 12000
 
-# 20 epochs from scratch, then a short low-LR warm restart for the last few points
+# 20 epochs from scratch, then two low-LR warm restarts for the last few points
 ..\.venv\Scripts\python.exe train.py --epochs 20 --batch 256 --lr 0.002 --stem-stride 2 --out artifacts\run2
 ..\.venv\Scripts\python.exe train.py --epochs 6 --batch 256 --lr 0.0004 --stem-stride 2 `
     --init-from artifacts\run2\best.pt --out artifacts\run2b
+..\.venv\Scripts\python.exe train.py --epochs 12 --batch 256 --lr 0.0004 --stem-stride 2 `
+    --init-from artifacts\run2b\best.pt --out artifacts\run2c
 
-..\.venv\Scripts\python.exe export.py --ckpt artifacts\run2b\best.pt   # ONNX + parity gate
-..\.venv\Scripts\python.exe export_samples.py --ckpt artifacts\run2b\best.pt  # AI-draw sketches
-..\.venv\Scripts\python.exe report.py --ckpt artifacts\run2b\best.pt   # metrics + README numbers
+..\.venv\Scripts\python.exe export.py --ckpt artifacts\run2c\best.pt   # ONNX + parity gate
+..\.venv\Scripts\python.exe export_samples.py --ckpt artifacts\run2c\best.pt  # AI-draw sketches
+..\.venv\Scripts\python.exe report.py --ckpt artifacts\run2c\best.pt   # metrics + README numbers
 ..\.venv\Scripts\python.exe fixtures.py
 
 # front end
