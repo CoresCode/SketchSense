@@ -39,7 +39,14 @@ npx wrangler pages deploy dist --project-name sketchsense
 
 Wrangler opens a browser once for auth; after that every deploy is one command.
 
-## 3. Custom domain
+## 3. Link previews
+
+`web/public/og.png` (1200x630, built from the hero shot by `ml/og.py`) is what Slack,
+Discord and LinkedIn show for the link. `web/index.html` points at it with a relative path,
+which works for the page itself; scrapers want an absolute URL, so once the final hostname is
+known change the two `content="/og.png"` values to `https://<host>/og.png`.
+
+## 4. Custom domain
 
 In the Pages project → **Custom domains** → add `sketch` (or `sketchsense`) under
 `anuragyadavcodes.com`. Because the domain is already on Cloudflare, the CNAME is created
@@ -51,7 +58,7 @@ Then link it from the portfolio site:
 <a href="https://sketch.anuragyadavcodes.com">SketchSense — draw it, a CNN names it</a>
 ```
 
-## 4. Caching
+## 5. Caching
 
 `web/public/_headers` is copied into `dist/` and controls caching on Pages:
 
