@@ -25,7 +25,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 BASE_URL = "https://storage.googleapis.com/quickdraw_dataset/full/simplified/{}.ndjson"
-USER_AGENT = "SketchSense/0.1 (student portfolio project; contact: anuragyadavcodes.com)"
+USER_AGENT = "SketchSense/0.1 (student portfolio project; contact: corescode.com)"
 
 
 def read_classes(path: Path) -> list[str]:

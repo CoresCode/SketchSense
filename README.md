@@ -2,6 +2,8 @@
 
 **Draw a doodle, a convolutional network names it — in your browser, with no server.**
 
+**Live:** https://sketchsense.corescode.workers.dev
+
 SketchSense is a small image classifier trained from scratch on Google's
 [QuickDraw](https://github.com/googlecreativelab/quickdraw-dataset) dataset and exported to
 ONNX so it runs locally in the page via ONNX Runtime Web (WASM). Nothing is uploaded, there
@@ -189,4 +191,4 @@ tools/   headless-Chrome tests and the screenshot pipeline (see below)
 ## Credits
 
 Dataset: [Google QuickDraw](https://github.com/googlecreativelab/quickdraw-dataset), released
-under CC BY 4.0. Model, pipeline and UI by [Anurag Yadav](https://anuragyadavcodes.com).
+under CC BY 4.0. Model, pipeline and UI by [Anurag Yadav](https://corescode.com).
