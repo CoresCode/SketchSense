@@ -225,7 +225,7 @@ async function main() {
       if (!(await clickByText("AI draws"))) throw new Error('no "AI draws" tab found');
       await sleep(900); // samples json + idle card
       if (!(await clickByText(difficulty))) throw new Error(`no "${difficulty}" difficulty button found`);
-      await sleep(3600); // let the stroke animation finish
+      await sleep(Number(args.wait ?? 3600)); // let the stroke animation finish
       const readout = await send("Runtime.evaluate", {
         expression: `document.body.innerText.slice(0, 400)`,
         returnByValue: true,
@@ -258,7 +258,10 @@ async function main() {
     if (!rect) throw new Error("canvas not found - is the dev server running?");
 
     const strokes = SCENES[scene] ?? SCENES.house;
-    for (const stroke of strokes) {
+    if (args.draw === "false") {
+      console.log("[capture] skipping the drawing pass");
+    }
+    for (const stroke of args.draw === "false" ? [] : strokes) {
       const pts = interpolate(stroke);
       const first = pts[0];
       await send("Input.dispatchMouseEvent", {

@@ -8,8 +8,8 @@ in the browser — it is why a free tier is genuinely enough here.
 
 ```powershell
 cd web
-npm install          # also publishes the ORT runtime to public/ort via postinstall
-npm run build        # -> web/dist
+npm install          # vite, react, onnxruntime-web
+npm run build        # -> web/dist (~21 MB total)
 ```
 
 Sanity check before uploading:
@@ -61,7 +61,8 @@ Then link it from the portfolio site:
 ## Notes
 
 * `dist/` is gitignored. The committed source of truth for the model is
-  `web/public/model/{model.onnx,labels.json}`, produced by `ml/export.py`.
+  `web/public/model/{model.onnx,labels.json,game-classes.json}`, produced by `ml/export.py`
+  and `ml/report.py`.
 * `onnxruntime-web/wasm` resolves and bundles its own `.wasm` file, so the runtime lands in
   `dist/assets/` with a content hash. There is no separate copy to maintain — an earlier
   version copied the same 14 MB into `public/ort/` as well, which just doubled the upload.

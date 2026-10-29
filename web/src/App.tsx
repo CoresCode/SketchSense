@@ -192,7 +192,7 @@ export default function App() {
                 onChange={setStrokes}
                 resetSignal={resetSignal}
                 disabled={!ready}
-                hint={ready && !ink ? "draw anything" : undefined}
+                hint={ready && !ink && mode === "free" ? "draw anything" : undefined}
               />
 
               {/* On a phone the prediction panel is below the fold, so the demo looks dead
