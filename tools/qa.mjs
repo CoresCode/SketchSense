@@ -67,9 +67,7 @@ async function main() {
 
   try {
     // ---- landing + model ---------------------------------------------------------------
-    const loaded = await b.waitFor(async () => (await b.bodyText()).includes("top-1"), {
-      timeout: 40000,
-    });
+    const loaded = await b.waitForModel(40000);
     check("model loads", loaded);
 
     const text = await b.bodyText();
@@ -165,7 +163,8 @@ async function main() {
     // ---- mobile layout -----------------------------------------------------------------
     await b.setViewport(390, 844);
     await b.send("Page.navigate", { url });
-    await b.waitFor(async () => (await b.bodyText()).includes("top-1"), { timeout: 40000 });
+    const mobileReady = await b.waitForModel(40000);
+    check("model loads on a phone-sized viewport", mobileReady);
     await sleep(400);
 
     const overflow = await b.evaluate(`(() => ({

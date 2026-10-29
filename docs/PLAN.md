@@ -41,6 +41,15 @@ no backend: a static folder is the whole deployment.
   one-stroke squiggles the model was sure about and no human could name. Easy now requires at
   least two strokes; hard deliberately samples the ambiguous middle (20th–35th percentile),
   not the worst sketches, which are simply unrecognisable.
+* **The speed round guessed before the drawing existed.** A circle and two dots already scored
+  as "smiley face", so the round ended before the mouth. A guess now has to hold for 1.2 s of
+  still ink (and at least two strokes), and the UI says *hold still — confirming…* while it
+  waits. `tools/test_speed_round.mjs` draws the face in human order and asserts the score only
+  lands after the settle window (measured ~1.3 s from pen-up).
+* **Prompts were drawn from all 100 classes.** Asking a stranger to doodle "Mount Rushmore" in
+  twenty seconds is not a test of the model. `ml/report.py` now writes
+  `web/public/model/game-classes.json` — the classes at or above 80% held-out accuracy — and the
+  round prompts only from those.
 
 ## Repo map
 
@@ -49,7 +58,9 @@ ml/      download.py raster.py prepare.py model.py train.py export.py
          export_samples.py report.py fixtures.py + profiling scripts
 web/     Vite + React + TS + Tailwind UI, ONNX Runtime Web inference
 docs/    metrics, confusion matrix, screenshots, deploy notes
-tools/   capture.mjs (headless screenshots), wait_training.ps1
+tools/   capture.mjs (headless screenshots), qa.mjs (whole-site smoke test),
+         test_speed_round.mjs (scoring rule), test_full_rounds.mjs (end screens),
+         cdp.mjs (shared Chrome DevTools helpers), wait_training.ps1
 ```
 
 ## Commands

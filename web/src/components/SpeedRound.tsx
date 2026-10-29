@@ -7,6 +7,8 @@ export type RoundResult = { target: string; hit: boolean; seconds: number };
 
 type Props = {
   classes: string[];
+  /** Subset of `classes` that is fair to prompt with; falls back to every class. */
+  pool: string[] | null;
   preds: Prediction[];
   strokes: Stroke[];
   onClear: () => void;
@@ -33,7 +35,7 @@ function pickTarget(classes: string[], avoid: string | null): string {
   return classes[0];
 }
 
-export default function SpeedRound({ classes, preds, strokes, onClear, onExit }: Props) {
+export default function SpeedRound({ classes, pool, preds, strokes, onClear, onExit }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [round, setRound] = useState(1);
   const [target, setTarget] = useState<string>("cat");
@@ -43,6 +45,7 @@ export default function SpeedRound({ classes, preds, strokes, onClear, onExit }:
   const [lastHit, setLastHit] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const promptCount = (pool && pool.length > 0 ? pool : classes).length;
 
   const resolvedRef = useRef(false);
   const advanceTimer = useRef<number | null>(null);
@@ -67,11 +70,11 @@ export default function SpeedRound({ classes, preds, strokes, onClear, onExit }:
       setLastHit(null);
       setRound(index);
       setTimeLeft(SECONDS);
-      setTarget(pickTarget(classes, avoid));
+      setTarget(pickTarget(pool && pool.length > 0 ? pool : classes, avoid));
       setPhase("playing");
       onClear();
     },
-    [classes, cancelSettle, onClear],
+    [classes, pool, cancelSettle, onClear],
   );
 
   const resolve = useCallback(
@@ -192,8 +195,9 @@ export default function SpeedRound({ classes, preds, strokes, onClear, onExit }:
           <div>
             <h3 className="font-display text-lg font-semibold text-white">Speed round</h3>
             <p className="mt-1 text-sm text-white/50">
-              {ROUNDS} prompts, {SECONDS}s each. Draw the thing — the model only calls it once you
-              stop, so a half-finished doodle gets a moment to become a doodle.
+              {ROUNDS} prompts, {SECONDS}s each, drawn from the {promptCount} classes this model
+              actually recognises. Draw the thing — the model only calls it once you stop, so a
+              half-finished doodle gets a moment to become a doodle.
             </p>
           </div>
           <button

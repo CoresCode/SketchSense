@@ -16,14 +16,32 @@
  *   node tools/test_speed_round.mjs --url http://127.0.0.1:5180
  */
 
+import { readFileSync } from "node:fs";
 import { openBrowser, parseArgs, reporter, sleep } from "./cdp.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const url = args.url ?? "http://127.0.0.1:5180";
 
-// labels.json is alphabetical; "smiley face" is index 79. Pinning Math.random to the middle
-// of that bucket makes pickTarget() choose it on the first attempt.
-const RANDOM = (79 + 0.5) / 100;
+// The prompt comes from the class list ml/report.py picked as fair to draw, so the index has
+// to be computed against that same file. Pinning Math.random into the middle of the "smiley
+// face" bucket makes pickTarget() choose it on the first attempt.
+function promptPool() {
+  const read = (name) => {
+    try {
+      return JSON.parse(readFileSync(new URL(`../web/public/model/${name}`, import.meta.url), "utf8"));
+    } catch {
+      return null;
+    }
+  };
+  const game = read("game-classes.json");
+  if (game?.classes?.length) return game.classes;
+  return read("labels.json")?.classes ?? [];
+}
+
+const POOL = promptPool();
+const TARGET = "smiley face";
+const TARGET_INDEX = POOL.indexOf(TARGET);
+const RANDOM = TARGET_INDEX < 0 ? 0.5 : (TARGET_INDEX + 0.5) / POOL.length;
 
 const { check, finish } = reporter();
 
@@ -45,19 +63,22 @@ async function main() {
         return "unknown";
       })()`);
 
-    const loaded = await b.waitFor(async () => (await b.bodyText()).includes("top-1"), {
-      timeout: 30000,
-    });
+    const loaded = await b.waitForModel(30000);
     check("model loads in the browser", loaded);
 
     check('opened the "Speed round" tab', await b.clickByText("Speed round"));
-    await sleep(500);
+    await sleep(800); // gives the prompt pool time to arrive
+    check(
+      `prompt pool is fair to draw (${POOL.length} classes)`,
+      POOL.length > 20 && TARGET_INDEX >= 0,
+      TARGET_INDEX >= 0 ? "smiley face included" : "smiley face missing",
+    );
     check("started a round", await b.clickByText("start"));
     await sleep(500);
 
     check(
-      'prompt is "smiley face"',
-      (await b.bodyText()).toLowerCase().includes("smiley face"),
+      `prompt is "${TARGET}"`,
+      (await b.bodyText()).toLowerCase().includes(TARGET),
     );
 
     const box = await b.canvasBox();

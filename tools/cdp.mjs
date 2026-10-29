@@ -144,6 +144,14 @@ export async function openBrowser({
     return false;
   };
 
+  /** The app enables the game tabs only once the ONNX session is ready. Works at any width. */
+  const modelReady = () =>
+    evaluate(`(() => [...document.querySelectorAll("button")].some(
+      (el) => el.innerText.trim() === "Speed round" && !el.disabled,
+    ))()`);
+
+  const waitForModel = (timeout = 40000) => waitFor(modelReady, { timeout });
+
   const clickByText = (text) =>
     evaluate(`(() => {
       const want = ${JSON.stringify(text.toLowerCase())};
@@ -243,6 +251,8 @@ export async function openBrowser({
     evaluate,
     bodyText,
     waitFor,
+    modelReady,
+    waitForModel,
     clickByText,
     canvasBox,
     drawStroke,

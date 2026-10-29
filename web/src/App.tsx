@@ -24,6 +24,25 @@ export default function App() {
   const [ms, setMs] = useState<number | null>(null);
   const [mode, setMode] = useState<"free" | "speed" | "aidraw">("free");
   const [resetSignal, setResetSignal] = useState(0);
+  const [promptPool, setPromptPool] = useState<string[] | null>(null);
+
+  // The speed round asks for doodles, so it asks for ones that are both drawable in twenty
+  // seconds and recognised by this model. ml/report.py writes the list from held-out accuracy;
+  // if it is missing the round simply falls back to every class.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("model/game-classes.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { classes?: string[] } | null) => {
+        if (!cancelled && data?.classes?.length) setPromptPool(data.classes);
+      })
+      .catch(() => {
+        /* optional file: the round works without it */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,6 +176,7 @@ export default function App() {
             {mode === "speed" && model && (
               <SpeedRound
                 classes={model.classes}
+                pool={promptPool}
                 preds={preds}
                 strokes={strokes}
                 onClear={clearCanvas}

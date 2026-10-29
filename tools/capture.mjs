@@ -44,6 +44,8 @@ const difficulty = args.difficulty ?? "easy";
 const width = Number(args.width ?? 1440);
 const height = Number(args.height ?? 1200);
 const port = Number(args.port ?? 9333);
+// README images are viewed at ~800 px wide, so render at 2x for crisp text.
+const scale = Number(args.scale ?? 1);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -157,7 +159,7 @@ async function main() {
     await send("Emulation.setDeviceMetricsOverride", {
       width,
       height,
-      deviceScaleFactor: 1,
+      deviceScaleFactor: scale,
       mobile: false,
     });
 
@@ -186,7 +188,11 @@ async function main() {
     let ok = false;
     for (let i = 0; i < 100; i++) {
       const r = await send("Runtime.evaluate", {
-        expression: `document.body.innerText.includes("top-1")`,
+        // Width-independent: the header pills are hidden on phones, but the game tabs are
+        // only enabled once the ONNX session is up.
+        expression: `(() => [...document.querySelectorAll("button")].some(
+          (el) => el.innerText.trim() === "Speed round" && !el.disabled,
+        ))()`,
         returnByValue: true,
       });
       if (r.result.value === true) {
