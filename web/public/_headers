@@ -1,5 +1,12 @@
+# Vite emits content-hashed filenames here, so a year + immutable is safe: a new build
+# produces new names, and the 14 MB ONNX Runtime wasm stops being re-validated on every visit.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# model.onnx is NOT hashed, so it cannot be immutable - but 5 minutes meant a revalidation
+# on almost every visit. An hour is the compromise between freshness and repeat cost.
 /model/*
-  Cache-Control: public, max-age=300
+  Cache-Control: public, max-age=3600
 
 /*
   X-Content-Type-Options: nosniff

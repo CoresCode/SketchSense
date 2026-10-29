@@ -159,6 +159,8 @@ export async function openBrowser({
       const b = all.find((el) => el.innerText.trim().toLowerCase() === want)
         ?? all.find((el) => el.innerText.trim().toLowerCase().startsWith(want));
       if (!b) return false;
+      // Clicking a disabled button is a no-op, so claiming success would hide a real stall.
+      if (b.disabled) return false;
       b.click();
       return true;
     })()`);

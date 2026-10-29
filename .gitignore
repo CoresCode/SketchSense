@@ -15,6 +15,7 @@ ml/runs/
 node_modules/
 web/dist/
 web/.vite/
+web/sketchsense-dist.zip
 npm-debug.log*
 
 # Model artifacts bigger than we want in git history. The shipped copy lives in

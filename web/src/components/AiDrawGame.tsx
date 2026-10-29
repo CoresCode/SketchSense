@@ -390,6 +390,12 @@ export default function AiDrawGame({ model, onExit }: Props) {
           </button>
         </div>
 
+        {classes.length === 0 && (
+          <p className="mt-2 animate-pulse font-mono text-[11px] text-white/45">
+            loading the sketch library…
+          </p>
+        )}
+
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           {[
             ["Rounds", String(ROUNDS)],

@@ -67,8 +67,19 @@ async function main() {
 
   try {
     // ---- landing + model ---------------------------------------------------------------
-    const loaded = await b.waitForModel(40000);
+    // Localhost answers instantly; a cold edge cache for a 6 MB model does not. Give remote
+    // runs room without hiding a genuine stall.
+    const isLocal = /^https?:\/\/(127\.0\.0\.1|localhost)/.test(url);
+    const loaded = await b.waitForModel(isLocal ? 40000 : 90000);
     check("model loads", loaded);
+    if (!loaded) {
+      // Dying on the next line used to hide the actual cause. Dump what the page saw.
+      console.log("\n[qa] model never became ready. Page text and console:"); 
+      console.log((await b.bodyText()).slice(0, 800));
+      for (const line of consoleErrors) console.log(" ", line);
+      for (const line of badRequests) console.log(" ", line);
+      throw new Error("model did not load");
+    }
 
     const text = await b.bodyText();
     check("header shows the class count", /\b100 classes\b/.test(text));
@@ -82,7 +93,9 @@ async function main() {
       return d.querySelectorAll("span").length;
     })()`);
     check("the class list holds every class", listCount === 100, String(listCount));
-    await b.evaluate(`document.querySelector("details").open = false`);
+    await b.evaluate(
+      `(() => { const d = document.querySelector("details"); if (d) d.open = false; return true; })()`,
+    );
 
     // ---- free draw ---------------------------------------------------------------------
     const box = await b.canvasBox();
@@ -129,10 +142,17 @@ async function main() {
       (await b.bodyText()).includes("AI draws, you guess"),
     );
 
-    check("picked the easy tier", await b.clickByText("easy"));
-    await sleep(3600); // let the stroke animation play
+    // The tier buttons stay disabled until sketch-samples.json has been fetched, which on a cold
+    // connection can take seconds. Wait for the click to actually land instead of assuming it does.
+    const tierClicked = await b.waitFor(() => b.clickByText("easy"), { timeout: 20000, interval: 200 });
+    check("picked the easy tier", tierClicked);
+    const started = await b.waitFor(async () => (await b.bodyText()).includes("GUESS THE DRAWING"), {
+      timeout: 15000,
+      interval: 150,
+    });
+    check("a sketch is drawn for the player", started);
+    await sleep(3600); // let the stroke animation play out
     const playing = await b.bodyText();
-    check("a sketch is drawn for the player", playing.includes("GUESS THE DRAWING"));
     check("a guess input is offered", playing.includes("type your answer"));
 
     const typed = await b.typeInto('input[placeholder*="bicycle"]', "house");
