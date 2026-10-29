@@ -158,6 +158,7 @@ export default function App() {
               <SpeedRound
                 classes={model.classes}
                 preds={preds}
+                strokes={strokes}
                 onClear={clearCanvas}
                 onExit={() => {
                   setMode("free");
@@ -173,6 +174,30 @@ export default function App() {
                 disabled={!ready}
                 hint={ready && !ink ? "draw anything" : undefined}
               />
+
+              {/* On a phone the prediction panel is below the fold, so the demo looks dead
+                  while you draw. Mirror the top-1 right here on small screens. */}
+              {ready && ink && preds[0] && (
+                <div
+                  data-testid="mobile-prediction"
+                  className="mt-3 flex items-center justify-between rounded-xl border border-white/8 bg-white/4 px-3 py-2 lg:hidden"
+                >
+                  <div>
+                    <p className="text-[9px] tracking-widest text-white/35 uppercase">model's guess</p>
+                    <p className="font-display text-lg leading-tight font-bold capitalize text-gradient">
+                      {preds[0].label}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono text-sm text-white/70">
+                      {preds[0].prob >= 0.995 ? "99%" : `${(preds[0].prob * 100).toFixed(1)}%`}
+                    </p>
+                    <p className="font-mono text-[10px] text-white/30">
+                      {ms !== null ? `${ms.toFixed(0)} ms` : "—"}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {model && (
                 <details className="mt-4 border-t border-white/8 pt-3">

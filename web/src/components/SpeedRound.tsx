@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import type { Prediction } from "../lib/inference";
+import type { Stroke } from "../lib/raster";
 
 export type RoundResult = { target: string; hit: boolean; seconds: number };
 
 type Props = {
   classes: string[];
   preds: Prediction[];
+  strokes: Stroke[];
   onClear: () => void;
   onExit: () => void;
 };
@@ -14,6 +16,11 @@ type Props = {
 const ROUNDS = 5;
 const SECONDS = 20;
 const HIT_THRESHOLD = 0.35;
+// A confident prediction is not the same as a finished drawing: a circle and two dots is
+// already "smiley face" at 97%, and scoring that instantly stops the player before they can
+// draw the mouth. So a guess only counts once the ink has been still for a moment.
+const SETTLE_MS = 1200;
+const MIN_STROKES = 2;
 
 type Phase = "idle" | "playing" | "feedback" | "done";
 
@@ -26,7 +33,7 @@ function pickTarget(classes: string[], avoid: string | null): string {
   return classes[0];
 }
 
-export default function SpeedRound({ classes, preds, onClear, onExit }: Props) {
+export default function SpeedRound({ classes, preds, strokes, onClear, onExit }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [round, setRound] = useState(1);
   const [target, setTarget] = useState<string>("cat");
@@ -35,15 +42,28 @@ export default function SpeedRound({ classes, preds, onClear, onExit }: Props) {
   const [results, setResults] = useState<RoundResult[]>([]);
   const [lastHit, setLastHit] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const resolvedRef = useRef(false);
   const advanceTimer = useRef<number | null>(null);
+  const settleTimer = useRef<number | null>(null);
   const targetRef = useRef(target);
   targetRef.current = target;
+  const predsRef = useRef(preds);
+  predsRef.current = preds;
+
+  const cancelSettle = useCallback(() => {
+    if (settleTimer.current) {
+      window.clearTimeout(settleTimer.current);
+      settleTimer.current = null;
+    }
+  }, []);
 
   const startRound = useCallback(
     (index: number, avoid: string | null) => {
       resolvedRef.current = false;
+      cancelSettle();
+      setConfirming(false);
       setLastHit(null);
       setRound(index);
       setTimeLeft(SECONDS);
@@ -51,13 +71,15 @@ export default function SpeedRound({ classes, preds, onClear, onExit }: Props) {
       setPhase("playing");
       onClear();
     },
-    [classes, onClear],
+    [classes, cancelSettle, onClear],
   );
 
   const resolve = useCallback(
     (hit: boolean, remaining: number) => {
       if (resolvedRef.current) return;
       resolvedRef.current = true;
+      cancelSettle();
+      setConfirming(false);
       setPhase("feedback");
       setLastHit(hit);
       setResults((prev) => [
@@ -78,6 +100,9 @@ export default function SpeedRound({ classes, preds, onClear, onExit }: Props) {
     [],
   );
 
+  const timeLeftRef = useRef(timeLeft);
+  timeLeftRef.current = timeLeft;
+
   // tick
   useEffect(() => {
     if (phase !== "playing") return;
@@ -94,14 +119,34 @@ export default function SpeedRound({ classes, preds, onClear, onExit }: Props) {
     return () => window.clearInterval(id);
   }, [phase, round, resolve]);
 
-  // hit detection
+  // hit detection: the guess has to survive the player putting the pen down, not just a
+  // single frame. Otherwise the round ends the moment a partial drawing is recognisable.
   useEffect(() => {
     if (phase !== "playing") return;
     const top = preds[0];
-    if (top && top.label === target && top.prob >= HIT_THRESHOLD) {
-      resolve(true, timeLeft);
+    const strokeCount = strokes.filter((s) => s.length > 0).length;
+    const matches =
+      !!top && top.label === target && top.prob >= HIT_THRESHOLD && strokeCount >= MIN_STROKES;
+
+    cancelSettle();
+    if (!matches) {
+      setConfirming(false);
+      return;
     }
-  }, [preds, phase, target, timeLeft, resolve]);
+
+    setConfirming(true);
+    settleTimer.current = window.setTimeout(() => {
+      settleTimer.current = null;
+      setConfirming(false);
+      // re-read the latest prediction: the guard must still be true when it fires
+      const now = predsRef.current[0];
+      if (now && now.label === targetRef.current && now.prob >= HIT_THRESHOLD) {
+        resolve(true, timeLeftRef.current);
+      }
+    }, SETTLE_MS);
+
+    return cancelSettle;
+  }, [preds, strokes, phase, target, resolve, cancelSettle]);
 
   // advance after feedback
   useEffect(() => {
@@ -147,8 +192,8 @@ export default function SpeedRound({ classes, preds, onClear, onExit }: Props) {
           <div>
             <h3 className="font-display text-lg font-semibold text-white">Speed round</h3>
             <p className="mt-1 text-sm text-white/50">
-              {ROUNDS} prompts, {SECONDS}s each. The model has to name your doodle before the clock
-              runs out.
+              {ROUNDS} prompts, {SECONDS}s each. Draw the thing — the model only calls it once you
+              stop, so a half-finished doodle gets a moment to become a doodle.
             </p>
           </div>
           <button
@@ -210,10 +255,18 @@ export default function SpeedRound({ classes, preds, onClear, onExit }: Props) {
                 ? "font-medium text-emerald-400"
                 : lastHit === false
                   ? "font-medium text-rose-400"
-                  : "text-white/30"
+                  : confirming
+                    ? "font-medium text-cyan-300"
+                    : "text-white/30"
             }
           >
-            {lastHit === true ? "got it!" : lastHit === false ? "missed" : "waiting for a guess…"}
+            {lastHit === true
+              ? "got it!"
+              : lastHit === false
+                ? "missed"
+                : confirming
+                  ? "hold still — confirming…"
+                  : "waiting for a guess…"}
           </span>
         </div>
       </div>

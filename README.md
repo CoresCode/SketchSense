@@ -28,7 +28,7 @@ is no API key, and hosting is a static folder.
 | Mode | What it does |
 |---|---|
 | **Free draw** | Draw anything; the top-5 updates live as you draw, with confidence bars and a measured inference time. |
-| **Speed round** | Fixed time per doodle, points for speed, and the guess only counts above 35% confidence — so argmax-spam does not win. |
+| **Speed round** | Fixed time per doodle, points for speed, and the guess only counts above 35% confidence *and* after the pen has been still for 1.2 s — a half-finished doodle gets a chance to become a doodle. |
 | **AI draws** | The model plays the other side: real QuickDraw sketches are replayed stroke by stroke and you type what you think it is. |
 
 **AI draws** deserves a note on honesty: it is not a generative model. The sketches are real
@@ -132,6 +132,20 @@ npm run build    # static output in dist/
 ```
 
 The repo ships `web/public/model/model.onnx`, so `npm run dev` works without retraining.
+
+## Test it like a user, not like a unit
+
+`tools/qa.mjs` drives headless Chrome through all three modes with real mouse and keyboard
+input, then fails on console errors, failed requests, a wrong top-1, slow inference, or a page
+that scrolls sideways at 390 px. `tools/test_speed_round.mjs` is the focused regression test
+for the scoring rule above: it draws a smiley face in the order a person would and asserts
+nothing scores until the mouth is on and the pen has been down for the settle window.
+
+```powershell
+npm run typecheck                       # in web/
+node tools/qa.mjs --url http://127.0.0.1:5180
+node tools/test_speed_round.mjs --url http://127.0.0.1:5180
+```
 
 ## Repo layout
 

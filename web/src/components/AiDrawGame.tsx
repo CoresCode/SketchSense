@@ -95,6 +95,7 @@ export default function AiDrawGame({ model, onExit }: Props) {
   const [guess, setGuess] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [last, setLast] = useState<Result | null>(null);
+  const [miss, setMiss] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -102,6 +103,7 @@ export default function AiDrawGame({ model, onExit }: Props) {
   const rafRef = useRef(0);
   const resolvedRef = useRef(false);
   const advanceRef = useRef(0);
+  const missTimer = useRef(0);
   const targetRef = useRef("");
   const modelRef = useRef(model);
   modelRef.current = model;
@@ -246,6 +248,7 @@ export default function AiDrawGame({ model, onExit }: Props) {
       resolvedRef.current = false;
       setLast(null);
       setGuess("");
+      setMiss(null);
       setRound(index);
       setTarget(chosen.name);
       targetRef.current = chosen.name;
@@ -299,12 +302,23 @@ export default function AiDrawGame({ model, onExit }: Props) {
     return () => window.clearTimeout(advanceRef.current);
   }, [phase, round, difficulty, startRound]);
 
-  useEffect(() => () => window.cancelAnimationFrame(rafRef.current), []);
+  useEffect(() => () => {
+    window.cancelAnimationFrame(rafRef.current);
+    window.clearTimeout(missTimer.current);
+  }, []);
 
   const submit = () => {
     if (phase !== "playing" || resolvedRef.current || !guess.trim()) return;
-    if (matches(guess, target)) resolve(true, timeLeft, target);
-    else setGuess("");
+    if (matches(guess, target)) {
+      resolve(true, timeLeft, target);
+      return;
+    }
+    // A wrong guess used to clear the box in silence, which reads as "nothing happened".
+    // Say so, and keep the player in the round.
+    setMiss(guess.trim());
+    setGuess("");
+    if (missTimer.current) window.clearTimeout(missTimer.current);
+    missTimer.current = window.setTimeout(() => setMiss(null), 1800);
   };
 
   const start = (diff: Difficulty) => {
@@ -489,6 +503,12 @@ export default function AiDrawGame({ model, onExit }: Props) {
             <p className="mt-2 text-center font-mono text-[11px] text-white/35">
               {timeLeft.toFixed(1)}s left
             </p>
+
+            {phase === "playing" && miss && (
+              <p className="mt-1 text-center text-[11px] text-rose-300">
+                not “{miss}” — keep going
+              </p>
+            )}
 
             {phase === "feedback" && last && (
               <div className="mt-3 rounded-xl border border-white/8 bg-white/3 p-3 text-center">
