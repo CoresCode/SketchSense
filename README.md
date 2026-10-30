@@ -2,9 +2,14 @@
 
 **Draw a doodle, a convolutional network names it — in your browser, with no server.**
 
-**Live:** https://sketchsense.corescode.workers.dev
+[![Live demo](https://img.shields.io/badge/live-sketchsense.corescode.workers.dev-2ea44f?style=flat-square)](https://sketchsense.corescode.workers.dev)
+[![CI](https://github.com/CoresCode/SketchSense/actions/workflows/ci.yml/badge.svg)](https://github.com/CoresCode/SketchSense/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Backend: none](https://img.shields.io/badge/backend-none-informational?style=flat-square)](#how-it-works)
 
-SketchSense is a small image classifier trained from scratch on Google's
+### ▶ **[Try it live — sketchsense.corescode.workers.dev](https://sketchsense.corescode.workers.dev)**
+
+SketchSense is a 100-class image classifier trained from scratch on Google's
 [QuickDraw](https://github.com/googlecreativelab/quickdraw-dataset) dataset and exported to
 ONNX so it runs locally in the page via ONNX Runtime Web (WASM). Nothing is uploaded, there
 is no API key, and hosting is a static folder.
@@ -156,7 +161,22 @@ halving the wait on a slow link.
 `game-classes.json` and in the badge on the page is now measured on the graph the browser
 actually downloads, not on its fp32 ancestor. The prompt pool held at 95 of 100 classes.
 
-## Run it
+## Run it locally
+
+The shipped model is committed, so the front end stands alone — 30 seconds, no training, no
+Python:
+
+```bash
+cd web
+npm install
+npm run dev      # http://127.0.0.1:5180
+```
+
+Everything below is how that model was produced, from raw QuickDraw strokes to the file the
+browser downloads. It needs Python 3.11+, a CUDA GPU (or patience), and ~5 GB of disk for the
+dataset.
+
+### Reproduce the model
 
 ```powershell
 # model (already committed, but this is how it is produced)
@@ -186,7 +206,9 @@ npm run dev      # http://127.0.0.1:5180
 npm run build    # static output in dist/
 ```
 
-The repo ships `web/public/model/model.onnx`, so `npm run dev` works without retraining.
+The repo ships `web/public/model/model.onnx`, so steps 1–7 are only needed if you change the
+model. Deployment is a static folder — see [`docs/DEPLOY.md`](docs/DEPLOY.md) for the
+from-zero walkthrough (Cloudflare Workers, but any static host works).
 
 ## Test it like a user, not like a unit
 
@@ -205,9 +227,9 @@ node tools/test_speed_round.mjs --url http://127.0.0.1:5180
 ## Repo layout
 
 ```
-ml/      data pipeline, model, training, export, parity fixtures, reporting
+ml/      data pipeline, model, training, export, quantisation, parity fixtures, reporting
 web/     Vite + React + TS + Tailwind UI, ONNX Runtime Web inference
-docs/    metrics, confusion matrix, screenshots, deploy notes
+docs/    metrics, confusion matrix, screenshots, deployment notes
 tools/   headless-Chrome tests and the screenshot pipeline (see below)
 ```
 
@@ -227,3 +249,8 @@ tools/   headless-Chrome tests and the screenshot pipeline (see below)
 
 Dataset: [Google QuickDraw](https://github.com/googlecreativelab/quickdraw-dataset), released
 under CC BY 4.0. Model, pipeline and UI by [Anurag Yadav](https://corescode.com).
+
+## Licence
+
+MIT — see [LICENSE](LICENSE). The dataset keeps its own CC BY 4.0 terms; the sketches replayed
+in AI-draw mode are QuickDraw drawings, not generated images.

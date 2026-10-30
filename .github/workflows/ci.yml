@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  web:
+    name: typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # `ci` not `install`: fails if package-lock.json and package.json disagree, which is
+      # exactly the mistake that makes a deploy build something different from what was tested.
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+      # The build is only correct if the browser gets a model and a label list. A Vite build
+      # happily succeeds with public/ half empty, so assert the shipped files instead.
+      - name: shipped model is present
+        run: |
+          test -s public/model/model.onnx
+          test -s public/model/labels.json
+          test -s dist/model/model.onnx
+          test -s dist/index.html
+          echo "model: $(stat -c%s dist/model/model.onnx) bytes"
+
+  python:
+    name: ml scripts parse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # py_compile is deliberately dependency-free: it catches syntax errors in the pipeline
+      # without a 2 GB torch install on every push.
+      - run: python -m compileall -q ml
