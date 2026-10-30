@@ -134,9 +134,9 @@ export default function App() {
             <span className="text-gradient">We'll name it.</span>
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/50 sm:text-base">
-            A small convolutional network trained from scratch on Google QuickDraw. Draw something
-            and it names it — or turn it around and guess what it draws. It runs on your device
-            through WebAssembly: no server, no upload, no API key.
+            Draw a cat, a guitar, a washing machine — whatever you like — and watch it get named
+            while you sketch. Or flip it around and guess what it draws for you. Everything happens
+            in your browser, so nothing you draw ever leaves your device.
           </p>
         </section>
 

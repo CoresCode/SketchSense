@@ -1,6 +1,6 @@
 # Deploying SketchSense
 
-The whole site is static: HTML, JS, one 6.4 MB ONNX file and the ONNX Runtime wasm. No server,
+The whole site is static: HTML, JS, one 1.6 MB ONNX file and the ONNX Runtime wasm. No server,
 no environment variables, no cold starts. That is a direct consequence of running inference in
 the browser — it is why a free tier is genuinely enough here.
 
@@ -31,7 +31,7 @@ Get-ChildItem dist -Recurse -File |
 ```
 
 Files must stay under Cloudflare Pages' **25 MiB per file** limit. The wasm runtime is the
-biggest artefact (14.2 MB); the model is 6.1 MB.
+biggest artefact (14.2 MB); the model is 1.6 MB.
 
 ## 2. Publish (drag and drop, no CLI)
 

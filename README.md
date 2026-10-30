@@ -15,10 +15,10 @@ is no API key, and hosting is a static folder.
 |---|---|
 | Classes | **100** QuickDraw categories |
 | Model | 4-stage residual CNN, **1.59 M parameters** |
-| Held-out top-1 | **90.6%** |
+| Held-out top-1 | **90.5%** |
 | Held-out top-5 | **97.4%** |
-| Inference | **~10 ms** per guess (WASM, single thread, this laptop) |
-| Model file | **6.4 MB** fp32 ONNX |
+| Inference | **~4 ms** per guess (WASM, single thread, this laptop) |
+| Model file | **1.7 MB** int8 ONNX |
 | Backend | none |
 <!-- stats:end -->
 
@@ -121,8 +121,40 @@ shipped warm-restart model's **90.57%** — 0.04 points, i.e. inside the noise o
 split. It also put *fewer* classes above the 80% floor the speed round draws its prompts from
 (92 vs 95), so the older checkpoint is the one that ships. Past ~90% the remaining error is
 concentrated in genuinely ambiguous classes — dog/horse, violin/guitar, cup/coffee cup — and
-more epochs only trade one for another. The 14 MB wasm plus a 6.1 MB model is the size that
+more epochs only trade one for another. The 14 MB wasm plus a 1.6 MB model is the size that
 buys ~90%, and the write-up is more useful than another 0.1.
+
+## Making it load on a bad connection
+
+The model was fine and the page still took two minutes to become usable on a ~1 Mbit/s link.
+Measuring first, instead of guessing: the browser was pulling **9.8 MB** on the wire — 3.4 MB
+of brotli-compressed ONNX Runtime wasm plus a 6.4 MB fp32 graph — and the wasm request did not
+even *start* until the model had finished, because ONNX Runtime only asks for it inside
+`InferenceSession.create()`.
+
+The obvious fix is wrong. Prefetching the wasm so both downloads overlap changes nothing on a
+bandwidth-limited link: the pipe is the constraint, and 9.8 MB takes the same time whether it
+arrives in one queue or two. Worse, a prefetch that misses the HTTP cache downloads the wasm
+twice. I measured it, confirmed the non-result, and dropped it.
+
+What actually worked was shipping fewer bytes. `ml/quantize.py` tries both quantisations and
+refuses to write an output that loses more than 0.3 points:
+
+| | top-1 (72,000 held-out) | size |
+|---|---|---|
+| fp32, as trained | 90.57% | 6.4 MB |
+| dynamic int8 (weights only) | **89.50%** — rejected | 1.6 MB |
+| static int8 (QDQ, calibrated) | **90.52%** — shipped | 1.6 MB |
+
+Dynamic quantisation re-derives activation scales on every call and cost 1.1 points. Static
+QDQ with activation ranges calibrated on 1,024 *training* sketches cost 0.05 — inside the
+noise — and inference got faster rather than slower (about 6 ms → 3.5 ms), because int8 conv
+kernels beat fp32 in the WASM backend. Total download fell from 9.8 MB to 5.0 MB, roughly
+halving the wait on a slow link.
+
+`report.py` gained `--onnx`, so every number in this README, in `docs/metrics.md`, in
+`game-classes.json` and in the badge on the page is now measured on the graph the browser
+actually downloads, not on its fp32 ancestor. The prompt pool held at 95 of 100 classes.
 
 ## Run it
 
@@ -140,8 +172,11 @@ cd ml
     --init-from artifacts\run2b\best.pt --out artifacts\run2c
 
 ..\.venv\Scripts\python.exe export.py --ckpt artifacts\run2c\best.pt   # ONNX + parity gate
+..\.venv\Scripts\python.exe quantize.py --mode static `               # 6.4 MB -> 1.6 MB int8
+    --onnx artifacts\sketchnet.onnx --out web\public\model\model.onnx
 ..\.venv\Scripts\python.exe export_samples.py --ckpt artifacts\run2c\best.pt  # AI-draw sketches
-..\.venv\Scripts\python.exe report.py --ckpt artifacts\run2c\best.pt   # metrics + README numbers
+..\.venv\Scripts\python.exe report.py --ckpt artifacts\run2c\best.pt `
+    --onnx ..\web\public\model\model.onnx                              # metrics of the shipped graph
 ..\.venv\Scripts\python.exe fixtures.py
 
 # front end

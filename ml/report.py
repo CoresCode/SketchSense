@@ -29,6 +29,13 @@ REPO = HERE.parent
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ckpt", type=Path, default=HERE / "artifacts" / "best.pt")
+    ap.add_argument(
+        "--onnx",
+        type=Path,
+        default=None,
+        help="evaluate this ONNX graph instead of the PyTorch checkpoint, so the reported "
+             "numbers describe the file the browser actually downloads (e.g. the int8 one)",
+    )
     ap.add_argument("--processed", type=Path, default=HERE / "data" / "processed")
     ap.add_argument("--seed", type=int, default=1337)
     ap.add_argument("--val-frac", type=float, default=0.06)
@@ -63,13 +70,35 @@ def main() -> None:
 
     preds = np.empty(len(val_idx), dtype=np.int16)
     chunk = 512
-    with torch.no_grad():
+    top5_hits = 0
+    y_val = y[val_idx]
+
+    if args.onnx:
+        # Measure the shipped artefact, not its training-time ancestor. Quantisation changes
+        # the graph, so the numbers on the page have to come from the graph that runs.
+        import onnxruntime as ort
+
+        opts = ort.SessionOptions()
+        opts.intra_op_num_threads = 1
+        opts.log_severity_level = 3
+        sess = ort.InferenceSession(str(args.onnx), opts, providers=["CPUExecutionProvider"])
+        iname = sess.get_inputs()[0].name
         for start in range(0, len(val_idx), chunk):
             part = val_idx[start : start + chunk]
-            logits = model(to_batch(X, part, device))
-            preds[start : start + chunk] = logits.argmax(1).cpu().numpy()
+            batch = (X[part].astype(np.float32) / 255.0)[:, None, :, :]
+            logits = sess.run(None, {iname: batch})[0]
+            preds[start : start + chunk] = logits.argmax(1)
+            order = np.argsort(logits, axis=1)[:, ::-1][:, :5]
+            top5_hits += int((order == y[part][:, None]).any(axis=1).sum())
+    else:
+        with torch.no_grad():
+            for start in range(0, len(val_idx), chunk):
+                part = val_idx[start : start + chunk]
+                logits = model(to_batch(X, part, device)).cpu().numpy()
+                preds[start : start + chunk] = logits.argmax(1)
+                order = np.argsort(logits, axis=1)[:, ::-1][:, :5]
+                top5_hits += int((order == y[part][:, None]).any(axis=1).sum())
 
-    y_val = y[val_idx]
     n = len(classes)
     matrix = np.zeros((n, n), dtype=np.int64)
     for t, p in zip(y_val, preds):
@@ -78,6 +107,7 @@ def main() -> None:
     per_class = matrix.diagonal() / np.maximum(matrix.sum(axis=1), 1)
     correct = int((preds == y_val).sum())
     top1 = correct / len(y_val)
+    top5 = top5_hits / len(y_val)
 
     # top confusion pairs
     off = matrix.copy()
@@ -127,12 +157,13 @@ def main() -> None:
     lines = [
         "# Evaluation",
         "",
-        f"Model: `{n}` classes, {ckpt['params']/1e6:.2f} M parameters, best epoch {ckpt['epoch']}.",
+        f"Model: `{n}` classes, {ckpt['params']/1e6:.2f} M parameters, best epoch {ckpt['epoch']}"
+        + (f", evaluated as the shipped int8 graph `{args.onnx.name}`." if args.onnx else "."),
         f"Held-out split: **{len(y_val):,} sketches** ({args.val_frac:.0%} per class, seed {args.seed}), "
         "never used for gradients.",
         "",
         f"* **Top-1 accuracy: {top1:.2%}**",
-        f"* Top-5 accuracy: {ckpt.get('val_top5', float('nan')):.2%}",
+        f"* Top-5 accuracy: {top5:.2%}",
         "",
         "## Most confused pairs",
         "",
@@ -175,6 +206,14 @@ def main() -> None:
         (web_model / "game-classes.json").write_text(json.dumps(pool, indent=2), encoding="utf-8")
         print(f"speed-round prompt pool: {len(good)}/{n} classes at >={args.prompt_min_acc:.0%}")
 
+        # The header badge reads valTop1 from here, so it must be the accuracy of the graph
+        # that ships - otherwise the page quotes a number the browser cannot reproduce.
+        labels_path = web_model / "labels.json"
+        if labels_path.exists():
+            labels = json.loads(labels_path.read_text(encoding="utf-8"))
+            labels["valTop1"] = top1
+            labels_path.write_text(json.dumps(labels, indent=2), encoding="utf-8")
+
     # ---- regenerate the README stats block ---------------------------------
     # The block sits between the stats:start / stats:end markers, so re-running this after
     # swapping in a better checkpoint just rewrites the numbers instead of leaving stale ones.
@@ -189,9 +228,9 @@ def main() -> None:
             f"| Classes | **{n}** QuickDraw categories |",
             f"| Model | 4-stage residual CNN, **{ckpt['params'] / 1e6:.2f} M parameters** |",
             f"| Held-out top-1 | **{top1:.1%}** |",
-            f"| Held-out top-5 | **{ckpt.get('val_top5', float('nan')):.1%}** |",
+            f"| Held-out top-5 | **{top5:.1%}** |",
             f"| Inference | **~{args.latency_ms:g} ms** per guess (WASM, single thread, this laptop) |",
-            f"| Model file | **{model_mb:.1f} MB** fp32 ONNX |",
+            f"| Model file | **{model_mb:.1f} MB** {'int8' if args.onnx else 'fp32'} ONNX |",
             "| Backend | none |",
             "<!-- stats:end -->",
         ]

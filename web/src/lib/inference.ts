@@ -65,10 +65,51 @@ export async function loadSketchModel(onStatus?: (m: string) => void): Promise<S
     valTop1: number | null;
   };
 
-  onStatus?.("downloading model");
   const modelRes = await fetch("/model/model.onnx");
   if (!modelRes.ok) throw new ModelMissingError("model/model.onnx is missing");
-  const bytes = new Uint8Array(await modelRes.arrayBuffer());
+
+  // Stream the weights so the wait is visible instead of a frozen "downloading model…".
+  const total = Number(modelRes.headers.get("content-length")) || 0;
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  let lastPaint = 0;
+  const report = (force = false) => {
+    if (!onStatus) return;
+    const now = performance.now();
+    if (!force && now - lastPaint < 200) return;
+    lastPaint = now;
+    const mb = (n: number) => (n / 1048576).toFixed(1);
+    onStatus(
+      total > 0
+        ? `downloading model ${mb(received)} / ${mb(total)} MB`
+        : `downloading model ${mb(received)} MB`,
+    );
+  };
+  report(true);
+
+  if (modelRes.body) {
+    const reader = modelRes.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        received += value.length;
+        report();
+      }
+    }
+  } else {
+    const buf = new Uint8Array(await modelRes.arrayBuffer());
+    chunks.push(buf);
+    received = buf.length;
+  }
+
+  const bytes = new Uint8Array(received);
+  let offset = 0;
+  for (const c of chunks) {
+    bytes.set(c, offset);
+    offset += c.length;
+  }
   // A 14 MB binary that starts with "<!doctype" is an HTML error page, not a model.
   if (bytes.length < 1024 || (bytes[0] === 0x3c && bytes[1] === 0x21)) {
     throw new ModelMissingError("model/model.onnx is missing");
